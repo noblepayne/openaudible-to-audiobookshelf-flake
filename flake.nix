@@ -13,11 +13,20 @@
     supportedSystems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
     pkgsBySystem = nixpkgs.lib.getAttrs supportedSystems nixpkgs.legacyPackages;
     forAllSystems = fn: nixpkgs.lib.mapAttrs (system: pkgs: (fn pkgs)) pkgsBySystem;
-    pythonEnv = pkgs:
+    pythonRuntimeEnv = pkgs:
       pkgs.python3.withPackages (ps:
         with ps; [
           requests
           pyyaml
+        ]);
+    pythonTestEnv = pkgs:
+      pkgs.python3.withPackages (ps:
+        with ps; [
+          requests
+          pyyaml
+          # test deps
+          pytest
+          pytest-cov
         ]);
   in {
     formatter = forAllSystems (pkgs: pkgs.alejandra);
@@ -35,7 +44,7 @@
         installPhase = ''
           mkdir -p $out/bin $out/lib
           cp config.py openaudible_to_ab.py $out/lib
-          makeBinaryWrapper ${(pythonEnv pkgs)}/bin/python3 $out/bin/openaudible_to_ab.py \
+          makeBinaryWrapper ${(pythonRuntimeEnv pkgs)}/bin/python3 $out/bin/openaudible_to_ab.py \
             --add-flags "$out/lib/openaudible_to_ab.py"
         '';
       };
@@ -43,7 +52,7 @@
     devShells = forAllSystems (pkgs: {
       default = pkgs.mkShell {
         buildInputs = [
-          (pythonEnv pkgs)
+          (pythonTestEnv pkgs)
           pkgs.ruff
         ];
         shellHook = ''
